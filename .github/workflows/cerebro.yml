@@ -1,0 +1,42 @@
+name: CEREBRO
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install python-jobspy pyyaml
+
+      # Restore DB from previous run (if exists)
+      - name: Download previous DB
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: cerebro-db
+          path: .
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Run CEREBRO
+        run: python cerebro.py
+        env:
+          CEREBRO_SMTP_PASSWORD: ${{ secrets.CEREBRO_SMTP_PASSWORD }}
+
+      # Persist DB for next run
+      - name: Upload DB
+        uses: actions/upload-artifact@v4
+        with:
+          name: cerebro-db
+          path: cerebro.db
+          retention-days: 90

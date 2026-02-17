@@ -1,0 +1,248 @@
+searches:
+  # ── Cast a wide net — ASAP mode ──
+
+  # Corp Dev / M&A / Strategy
+  - term: "corporate development"
+    location: "United States"
+    sites: ["indeed", "linkedin", "glassdoor"]
+    results_wanted: 100
+    hours_old: 72
+    country: "USA"
+
+  - term: "M&A analyst"
+    location: "United States"
+    sites: ["indeed", "linkedin"]
+    results_wanted: 50
+    hours_old: 72
+    country: "USA"
+
+  # Strategic Finance / FP&A / BizOps
+  - term: "strategic finance"
+    location: "United States"
+    sites: ["indeed", "linkedin", "glassdoor"]
+    results_wanted: 100
+    hours_old: 72
+    country: "USA"
+
+  - term: "FP&A remote"
+    location: "United States"
+    sites: ["indeed", "linkedin"]
+    results_wanted: 50
+    hours_old: 72
+    country: "USA"
+
+  - term: "business operations"
+    location: "United States"
+    sites: ["indeed", "linkedin"]
+    results_wanted: 100
+    hours_old: 72
+    country: "USA"
+
+  # Product Management
+  - term: "product manager remote"
+    location: "United States"
+    sites: ["indeed", "linkedin", "glassdoor"]
+    results_wanted: 100
+    hours_old: 72
+    country: "USA"
+
+  - term: "technical product manager"
+    location: "United States"
+    sites: ["indeed", "linkedin"]
+    results_wanted: 50
+    hours_old: 72
+    country: "USA"
+
+  # Real Estate / PropTech
+  - term: "real estate acquisitions"
+    location: "United States"
+    sites: ["indeed", "linkedin"]
+    results_wanted: 50
+    hours_old: 72
+    country: "USA"
+
+  - term: "real estate analyst remote"
+    location: "United States"
+    sites: ["indeed", "linkedin"]
+    results_wanted: 50
+    hours_old: 72
+    country: "USA"
+
+  # Chief of Staff / Strategy & Ops (startup-friendly, flexible roles)
+  - term: "strategy and operations"
+    location: "United States"
+    sites: ["indeed", "linkedin"]
+    results_wanted: 50
+    hours_old: 72
+    country: "USA"
+
+  # ── NYC hybrid roles ──
+  - term: "corporate development"
+    location: "New York, NY"
+    sites: ["indeed", "linkedin", "glassdoor"]
+    results_wanted: 50
+    hours_old: 72
+    country: "USA"
+    nyc_hybrid: true
+
+  - term: "strategic finance"
+    location: "New York, NY"
+    sites: ["indeed", "linkedin"]
+    results_wanted: 50
+    hours_old: 72
+    country: "USA"
+    nyc_hybrid: true
+
+  - term: "product manager"
+    location: "New York, NY"
+    sites: ["indeed", "linkedin", "glassdoor"]
+    results_wanted: 100
+    hours_old: 72
+    country: "USA"
+    nyc_hybrid: true
+
+  - term: "M&A analyst"
+    location: "New York, NY"
+    sites: ["indeed", "linkedin"]
+    results_wanted: 50
+    hours_old: 72
+    country: "USA"
+    nyc_hybrid: true
+
+  - term: "business operations"
+    location: "New York, NY"
+    sites: ["indeed", "linkedin"]
+    results_wanted: 50
+    hours_old: 72
+    country: "USA"
+    nyc_hybrid: true
+
+  - term: "real estate analyst"
+    location: "New York, NY"
+    sites: ["indeed", "linkedin"]
+    results_wanted: 50
+    hours_old: 72
+    country: "USA"
+    nyc_hybrid: true
+
+filters:
+  # Title keywords — job must contain at least one (case-insensitive)
+  target_titles:
+    # Corp Dev / M&A
+    - "corporate development"
+    - "corp dev"
+    - "m&a"
+    - "mergers"
+    - "acquisitions"
+    - "strategic partnerships"
+    - "business development"
+    # Strategic Finance / BizOps
+    - "strategic finance"
+    - "fp&a"
+    - "financial planning"
+    - "financial analyst"
+    - "finance manager"
+    - "business operations"
+    - "bizops"
+    - "biz ops"
+    - "revenue operations"
+    - "revops"
+    # "chief of staff" — removed, not a fit
+    # Product
+    - "product manager"
+    - "product lead"
+    - "head of product"
+    - "product owner"
+    - "product strategy"
+    - "technical product"
+    - "program manager"
+    # Real Estate / PropTech
+    - "acquisitions"
+    - "asset management"
+    - "real estate"
+    - "proptech"
+    - "investment analyst"
+    - "investment associate"
+    - "investment manager"
+    - "underwriter"
+    # General strategy
+    - "strategy manager"
+    - "strategy associate"
+    - "strategy & operations"
+    - "strategy and operations"
+    - "operations manager"
+    - "operations associate"
+    # Analyst roles (open to more junior)
+    - "business analyst"
+    - "financial analyst"
+    - "data analyst"
+
+  poison_tokens:
+    # Location — reject fully onsite (hybrid OK if in NYC)
+    - "onsite"
+    - "on-site"
+    - "in-office"
+    - "in office"
+    - "must relocate"
+    - "no remote"
+    - "commute to"
+    - "chief of staff"
+    # Defense / Clearance
+    - "security clearance"
+    - "ts/sci"
+    - "polygraph"
+    - "itar"
+    - "secret clearance"
+    # Crypto / Web3
+    - "blockchain"
+    - "web3"
+    - "decentralized finance"
+    - "cryptocurrency"
+    - "crypto"
+    # Spam
+    - "staffing agency"
+    - "contract to hire"
+    - "c2h"
+
+  require_remote: true
+
+  # Allow hybrid/onsite jobs if location matches these (case-insensitive substring)
+  allow_hybrid_locations:
+    - "new york"
+    - "nyc"
+    - "manhattan"
+    - "brooklyn"
+    - "jersey city"
+
+  exclude_seniority:
+    # Floor: no interns
+    - "intern"
+    - "internship"
+    # Ceiling: no principal/staff/director+ (too senior for ~8 YOE)
+    - "principal"
+    - "staff"
+    - "lead"
+    - "head of"
+    - "group product"
+    - "director"
+    - "vp"
+    - "vice president"
+    - "c-suite"
+    - "cfo"
+    - "coo"
+    - "managing director"
+
+  # Lowered to $60k — just need a job
+  min_salary: 60000
+
+  # Reject postings older than 14 days (if date is known)
+  max_age_days: 14
+
+email:
+  method: "smtp"
+  from: "jaison.sunny.george@gmail.com"
+  to: "jaison.sunny.george@gmail.com"
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  # Set CEREBRO_SMTP_PASSWORD env var (Gmail app password)
+  # Or switch method to "sendgrid" and set CEREBRO_SENDGRID_KEY
