@@ -32,6 +32,7 @@ jobs:
         run: python cerebro.py
         env:
           CEREBRO_SMTP_PASSWORD: ${{ secrets.CEREBRO_SMTP_PASSWORD }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       # Persist DB for next run
       - name: Upload DB
