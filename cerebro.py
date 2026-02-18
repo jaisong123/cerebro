@@ -740,8 +740,9 @@ def _send_smtp(cfg: dict, subject: str, html: str):
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = cfg["from"]
+    msg["From"] = f"CEREBRO <{cfg['from']}>"
     msg["To"] = cfg["to"]
+    msg["X-Priority"] = "1"
     msg.attach(MIMEText(html, "html"))
 
     with smtplib.SMTP(cfg.get("smtp_host", "smtp.gmail.com"), cfg.get("smtp_port", 587)) as server:
