@@ -243,8 +243,10 @@ FALSE_POSITIVE_COMPANIES = [
     "ford",  "toyota",  "crusoe",  "jll",  "welltower",
     "endex",  "block",  "verra",  "pulley",  "brex",
     "smartsheet",
-    # Spam / recruiters
+    # Spam / recruiters / staffing
     "lensa",  "platinum legal",  "bcg attorney",  "dataannotation",
+    "crossover",  "career launch",  "mercor",  "coda search",
+    "national capital partnerships",  "jobgether",
 ]
 
 
@@ -603,7 +605,7 @@ RULES:
 def notify(config: dict, db: sqlite3.Connection):
     rows = db.execute(
         """SELECT fingerprint, title, company, location, url, salary_min, salary_max,
-                  source, ai_score, ai_reasoning, recommended_resume, date_posted
+                  source, ai_score, ai_reasoning, recommended_resume, date_posted, is_remote
            FROM jobs WHERE is_match = 1 AND notified_at IS NULL
            ORDER BY ai_score DESC NULLS LAST"""
     ).fetchall()
@@ -657,7 +659,7 @@ def _build_email_html(rows) -> str:
     god_tier_rows = ""
     other_rows = ""
 
-    for _, title, company, location, url, sal_min, sal_max, source, ai_score, ai_reason, resume, date_posted in rows:
+    for _, title, company, location, url, sal_min, sal_max, source, ai_score, ai_reason, resume, date_posted, is_remote in rows:
         salary = ""
         if sal_min and sal_max:
             salary = f"${sal_min:,.0f}–${sal_max:,.0f}"
@@ -685,11 +687,24 @@ def _build_email_html(rows) -> str:
         reason_html = f'<br><span style="color:#666;font-size:12px;font-style:italic;">{ai_reason}</span>' if ai_reason else ""
         resume_html = f'<br><span style="color:#2563eb;font-size:11px;">📄 {resume}</span>' if resume else ""
 
+        # Location tag: Remote / Hybrid / On-site
+        loc_lower = (location or "").lower()
+        nyc_keywords = ["new york", "nyc", "manhattan", "brooklyn", "jersey city"]
+        if is_remote:
+            loc_tag = '<span style="color:#16a34a;font-weight:600;">Remote</span>'
+        elif any(k in loc_lower for k in nyc_keywords):
+            loc_tag = f'<span style="color:#2563eb;font-weight:600;">NYC</span>'
+        elif location:
+            loc_tag = f'<span style="color:#888;font-size:12px;">{location[:30]}</span>'
+        else:
+            loc_tag = '—'
+
         row_html = f"""
         <tr>
             <td style="text-align:center;">{badge}</td>
             <td><a href="{url}" style="color:#2563eb;text-decoration:none;font-weight:600;">{title}</a>{reason_html}{resume_html}</td>
             <td>{company or '—'}</td>
+            <td>{loc_tag}</td>
             <td>{salary or '—'}</td>
             <td style="font-size:12px;color:#888;">{date_str or '—'}</td>
             <td style="font-size:12px;color:#888;">{source}</td>
@@ -707,7 +722,7 @@ def _build_email_html(rows) -> str:
         <h3 style="color:#16a34a;margin:20px 0 8px;">GOD TIER — Apply Today</h3>
         <table border="0" cellpadding="8" cellspacing="0" style="border-collapse:collapse;font-family:sans-serif;font-size:14px;width:100%;border:1px solid #e5e7eb;">
             <tr style="background:#f0fdf4;">
-                <th style="width:40px;">Fit</th><th style="text-align:left;">Role</th><th>Company</th><th>Salary</th><th>Posted</th><th>Src</th>
+                <th style="width:40px;">Fit</th><th style="text-align:left;">Role</th><th>Company</th><th>Loc</th><th>Salary</th><th>Posted</th><th>Src</th>
             </tr>
             {god_tier_rows}
         </table>"""
@@ -717,7 +732,7 @@ def _build_email_html(rows) -> str:
         <h3 style="color:#666;margin:20px 0 8px;">Other Matches</h3>
         <table border="0" cellpadding="8" cellspacing="0" style="border-collapse:collapse;font-family:sans-serif;font-size:14px;width:100%;border:1px solid #e5e7eb;">
             <tr style="background:#f9fafb;">
-                <th style="width:40px;">Fit</th><th style="text-align:left;">Role</th><th>Company</th><th>Salary</th><th>Posted</th><th>Src</th>
+                <th style="width:40px;">Fit</th><th style="text-align:left;">Role</th><th>Company</th><th>Loc</th><th>Salary</th><th>Posted</th><th>Src</th>
             </tr>
             {other_rows}
         </table>"""
