@@ -193,16 +193,25 @@ filters:
     - "polygraph"
     - "itar"
     - "secret clearance"
-    # Crypto / Web3
+    # Crypto / Web3 / Digital assets
     - "blockchain"
     - "web3"
     - "decentralized finance"
     - "cryptocurrency"
     - "crypto"
-    # Spam
-    - "staffing agency"
+    - "stablecoins"
+    - "digital assets"
+    # Finance niches that don't match background
+    - "interest rate swaps"
+    - "derivatives trading"
+    - "fixed income trading"
+    # Employment type
+    - "part-time"
+    - "part time"
+    - "freelance"
     - "contract to hire"
     - "c2h"
+    - "staffing agency"
 
   require_remote: true
 
@@ -229,6 +238,8 @@ filters:
     - "svp"
     - "vice president"
     - "senior vice president"
+    - "exec dir"
+    - "executive director"
     - "c-suite"
     - "cfo"
     - "coo"

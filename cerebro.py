@@ -11,6 +11,7 @@ import os
 import re
 import sqlite3
 import smtplib
+import sys
 import time
 import urllib.request
 from datetime import datetime, timezone
@@ -219,13 +220,17 @@ def ingest(config: dict, db: sqlite3.Connection):
 
 # False positive patterns to auto-reject regardless of title match
 FALSE_POSITIVE_PATTERNS = [
+    # ── Lawyer / legal roles ──
     (r'\bcounsel\b.*\breal estate\b|\breal estate\b.*\bcounsel\b', "false_positive", "lawyer role"),
     (r'\battorney\b|\blegal counsel\b|\bjuris doctor\b|\bbar admission\b|\blaw firm\b|\bamlaw\b', "false_positive", "lawyer role"),
     (r'\bpartner\b.*\b(m&a|private equity|capital markets|finance|funds|transactions)\b.*\b(attorney|firm|law)\b', "false_positive", "lawyer role"),
+    (r'\blegal\s+(associate|review|analyst)\b', "false_positive", "lawyer role"),
+    # ── Misc non-matching ──
     (r'\bappraiser\b', "false_positive", "appraiser role"),
     (r'\bunderwriter\b.*\binsurance\b|\binsurance\b.*\bunderwriter\b', "false_positive", "insurance underwriter"),
     (r'\bwaterproofing\b|\broofing\b|\bhvac\b|\bplumbing\b', "false_positive", "construction/trades"),
-    # Traditional RE — want proptech/RE+tech, not old-school finance RE
+    (r'\bcourier\b|\bdelivery driver\b', "false_positive", "logistics/courier"),
+    # ── Traditional RE — want proptech/RE+tech, not old-school finance RE ──
     (r'\boriginations?\b', "false_positive", "traditional RE"),
     (r'\bpre-mba\b|\b20\d{2}\s+program\b', "false_positive", "traditional RE/rotational"),
     (r'\bmortgage\b(?!.*\btech\b)', "false_positive", "traditional RE"),
@@ -234,6 +239,20 @@ FALSE_POSITIVE_PATTERNS = [
     (r'\bloan\s+officer\b|\btitle\s+officer\b|\bescrow\b', "false_positive", "traditional RE"),
     (r'\breal estate\b.*\b(financing|investing|debt|equity)\b', "false_positive", "traditional RE"),
     (r'\b(asset management|portfolio management)\b(?!.*\btech\b|\bsoftware\b|\bproduct\b)', "false_positive", "traditional RE"),
+    (r'\breal estate\s+(agent|salesperson|sales\b|broker)', "false_positive", "RE sales/brokerage"),
+    (r'\b(cre|commercial real estate)\s+(credit|underwriting|administrative)\b', "false_positive", "traditional RE"),
+    (r'\brent\s*roll\b|\bnoi\s+growth\b|\bcmbs\b', "false_positive", "traditional RE"),
+    (r'\bdisposition\s+salesperson\b', "false_positive", "RE sales"),
+    (r'\btitle\s+real\s+estate\b', "false_positive", "title company"),
+    (r'\bcommercial\s+term\s+lending\b', "false_positive", "traditional RE lending"),
+    (r'\binvestment\s+sales\b.*\breal estate\b|\breal estate\b.*\binvestment\s+sales\b', "false_positive", "RE brokerage"),
+]
+
+# Company name patterns that indicate law firms or staffing
+FALSE_POSITIVE_COMPANY_PATTERNS = [
+    r'\bllp\b',           # law firms: Greenberg Traurig LLP, Blank Rome LLP, etc.
+    r'\bp\.?a\.?\b',      # law firms: Norris McLaughlin P.A.
+    r'\blaw\s+(firm|group|office)\b',
 ]
 
 FALSE_POSITIVE_COMPANIES = [
@@ -242,11 +261,17 @@ FALSE_POSITIVE_COMPANIES = [
     "headway",  "found",  "realpage",  "wing",  "lifetime",
     "ford",  "toyota",  "crusoe",  "jll",  "welltower",
     "endex",  "block",  "verra",  "pulley",  "brex",
-    "smartsheet",
-    # Spam / recruiters / staffing
+    "smartsheet",  "cu ",
+    # Spam / recruiters / staffing agencies
     "lensa",  "platinum legal",  "bcg attorney",  "dataannotation",
     "crossover",  "career launch",  "mercor",  "coda search",
-    "national capital partnerships",  "jobgether",
+    "national capital partnerships",  "jobgether",  "crossing hurdles",
+    "cybercoders",  "saransh",  "net2source",  "compunnel",
+    "stand8",  "themesoft",  "intepros",  "solomon page",
+    "dice",  "career hire",  "hackajob",  "balin technologies",
+    "delta system",  "sierra business solution",  "speridian",
+    "aston carter",  "diversity nexus",  "coretek",  "novara",
+    "motion recruitment",
 ]
 
 
@@ -279,6 +304,13 @@ def evaluate(config: dict, db: sqlite3.Connection):
         # Filter 0: false positive companies
         if any(bad in company_lower for bad in FALSE_POSITIVE_COMPANIES):
             _reject(db, fp, now, "false_positive", company_lower.strip())
+            rejected += 1
+            continue
+
+        # Filter 0a: law firm / staffing company name patterns
+        company_fp_hit = next((p for p in FALSE_POSITIVE_COMPANY_PATTERNS if re.search(p, company_lower)), None)
+        if company_fp_hit:
+            _reject(db, fp, now, "false_positive", f"company pattern: {company_fp_hit}")
             rejected += 1
             continue
 
@@ -614,15 +646,22 @@ def notify(config: dict, db: sqlite3.Connection):
         log.info("No new matches to notify.")
         return
 
-    log.info(f"{len(rows)} new matches to send.")
+    # Only email jobs scored 5+ (drop stretch/garbage score 3 matches)
+    min_email_score = 5
+    email_rows = [r for r in rows if r[8] and r[8] >= min_email_score]
+    if not email_rows:
+        log.info("No matches above score threshold to email.")
+        return
+
+    log.info(f"{len(rows)} new matches to send ({len(rows) - len(email_rows)} below score {min_email_score} suppressed).")
 
     email_cfg = config.get("email", {})
     method = email_cfg.get("method", "smtp")
 
-    god_tier = sum(1 for r in rows if r[8] and r[8] >= 7)
-    subject = f"CEREBRO: {len(rows)} jobs ({god_tier} god-tier)" if god_tier else f"CEREBRO: {len(rows)} new matches"
+    god_tier = sum(1 for r in email_rows if r[8] and r[8] >= 7)
+    subject = f"CEREBRO: {len(email_rows)} jobs ({god_tier} god-tier)" if god_tier else f"CEREBRO: {len(email_rows)} new matches"
 
-    html = _build_email_html(rows)
+    html = _build_email_html(email_rows)
 
     try:
         if method == "sendgrid":
@@ -659,7 +698,16 @@ def _build_email_html(rows) -> str:
     god_tier_rows = ""
     other_rows = ""
 
-    for _, title, company, location, url, sal_min, sal_max, source, ai_score, ai_reason, resume, date_posted, is_remote in rows:
+    # Deduplicate: keep highest-scored version of same title+company
+    seen = set()
+    deduped_rows = []
+    for row in rows:
+        key = ((row[1] or "").lower().strip(), (row[2] or "").lower().strip())  # (title, company)
+        if key not in seen:
+            seen.add(key)
+            deduped_rows.append(row)
+
+    for _, title, company, location, url, sal_min, sal_max, source, ai_score, ai_reason, resume, date_posted, is_remote in deduped_rows:
         salary = ""
         if sal_min and sal_max:
             salary = f"${sal_min:,.0f}–${sal_max:,.0f}"
@@ -740,7 +788,7 @@ def _build_email_html(rows) -> str:
     return f"""
     <html><body style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:20px;">
     <h2 style="margin-bottom:4px;">CEREBRO</h2>
-    <p style="color:#666;margin-top:0;">Found {len(rows)} match{'es' if len(rows) != 1 else ''} · {datetime.now(timezone.utc).strftime('%b %d, %Y %H:%M UTC')}</p>
+    <p style="color:#666;margin-top:0;">Found {len(deduped_rows)} match{'es' if len(deduped_rows) != 1 else ''} · {datetime.now(timezone.utc).strftime('%b %d, %Y %H:%M UTC')}</p>
     {sections}
     <p style="color:#aaa;font-size:11px;margin-top:24px;">Score guide: 9-10 = perfect fit, 7-8 = strong, 5-6 = decent, &lt;5 = stretch · God-tier = 7+<br>
     Resume recommendations based on job description keyword analysis.</p>
@@ -794,6 +842,15 @@ def main():
     config = load_config()
     db = sqlite3.connect(DB_PATH)
     init_db(db)
+
+    # --reevaluate: reset all previously matched jobs so new filters apply retroactively
+    if "--reevaluate" in sys.argv:
+        reset = db.execute(
+            "UPDATE jobs SET is_match=NULL, evaluated_at=NULL, ai_score=NULL, "
+            "ai_reasoning=NULL, scored_at=NULL, notified_at=NULL, recommended_resume=NULL"
+        ).rowcount
+        db.commit()
+        log.info(f"Re-evaluate mode: reset {reset} jobs for re-evaluation")
 
     ingest(config, db)
     evaluate(config, db)
