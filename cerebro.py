@@ -271,7 +271,7 @@ FALSE_POSITIVE_COMPANIES = [
     "dice",  "career hire",  "hackajob",  "balin technologies",
     "delta system",  "sierra business solution",  "speridian",
     "aston carter",  "diversity nexus",  "coretek",  "novara",
-    "motion recruitment",
+    "motion recruitment",  "origin staffing",
 ]
 
 
@@ -637,7 +637,8 @@ RULES:
 def notify(config: dict, db: sqlite3.Connection):
     rows = db.execute(
         """SELECT fingerprint, title, company, location, url, salary_min, salary_max,
-                  source, ai_score, ai_reasoning, recommended_resume, date_posted, is_remote
+                  source, ai_score, ai_reasoning, recommended_resume, date_posted, is_remote,
+                  description
            FROM jobs WHERE is_match = 1 AND notified_at IS NULL
            ORDER BY ai_score DESC NULLS LAST"""
     ).fetchall()
@@ -707,7 +708,7 @@ def _build_email_html(rows) -> str:
             seen.add(key)
             deduped_rows.append(row)
 
-    for _, title, company, location, url, sal_min, sal_max, source, ai_score, ai_reason, resume, date_posted, is_remote in deduped_rows:
+    for _, title, company, location, url, sal_min, sal_max, source, ai_score, ai_reason, resume, date_posted, is_remote, description in deduped_rows:
         salary = ""
         if sal_min and sal_max:
             salary = f"${sal_min:,.0f}–${sal_max:,.0f}"
@@ -737,9 +738,17 @@ def _build_email_html(rows) -> str:
 
         # Location tag: Remote / Hybrid / On-site
         loc_lower = (location or "").lower()
+        desc_lower = (description or "").lower()
+        title_lower = (title or "").lower()
         nyc_keywords = ["new york", "nyc", "manhattan", "brooklyn", "jersey city"]
-        if is_remote:
+        hybrid_signals = ["hybrid", "on-site", "onsite", "in-office",
+                          "must be based", "may be based", "required to work from",
+                          "days in office", "days per week in", "report to"]
+        has_hybrid = any(h in desc_lower or h in title_lower for h in hybrid_signals)
+        if is_remote and not has_hybrid:
             loc_tag = '<span style="color:#16a34a;font-weight:600;">Remote</span>'
+        elif is_remote and has_hybrid:
+            loc_tag = '<span style="color:#f59e0b;font-weight:600;">Hybrid</span>'
         elif any(k in loc_lower for k in nyc_keywords):
             loc_tag = f'<span style="color:#2563eb;font-weight:600;">NYC</span>'
         elif location:
